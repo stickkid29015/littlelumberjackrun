@@ -1,0 +1,302 @@
+class LumberjackGame {
+    constructor() {
+        this.canvas = document.getElementById('gameCanvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.scoreElement = document.getElementById('score');
+        this.statusElement = document.getElementById('gameStatus');
+        this.restartBtn = document.getElementById('restartBtn');
+        
+        // Game dimensions
+        this.width = this.canvas.width;
+        this.height = this.canvas.height;
+        
+        // Game state
+        this.gameRunning = true;
+        this.score = 0;
+        
+        // Player properties
+        this.player = {
+            x: 50,
+            y: this.height - 120,
+            width: 20,
+            height: 30,
+            velocityY: 0,
+            onGround: false,
+            onLog: false,
+            speed: 3,
+            jumpPower: 12,
+            gravity: 0.5
+        };
+        
+        // River and ground setup
+        this.riverTop = this.height - 120;
+        this.riverBottom = this.height - 40;
+        this.groundHeight = 40;
+        
+        // Logs array
+        this.logs = [];
+        this.logSpawnTimer = 0;
+        this.logSpawnInterval = 120; // frames between log spawns
+        
+        // Input handling
+        this.keys = {};
+        this.setupEventListeners();
+        
+        // Start game loop
+        this.gameLoop();
+    }
+    
+    setupEventListeners() {
+        // Keyboard input
+        document.addEventListener('keydown', (e) => {
+            this.keys[e.code] = true;
+        });
+        
+        document.addEventListener('keyup', (e) => {
+            this.keys[e.code] = false;
+        });
+        
+        // Restart button
+        this.restartBtn.addEventListener('click', () => {
+            this.restart();
+        });
+    }
+    
+    createLog() {
+        const logWidth = Math.random() * 60 + 40; // Random width between 40-100
+        const logHeight = 15;
+        const speed = Math.random() * 2 + 1; // Random speed between 1-3
+        
+        // Create logs at different heights in the river
+        const possibleY = [
+            this.riverTop + 20,
+            this.riverTop + 40,
+            this.riverTop + 60
+        ];
+        
+        return {
+            x: this.width,
+            y: possibleY[Math.floor(Math.random() * possibleY.length)],
+            width: logWidth,
+            height: logHeight,
+            speed: speed,
+            color: '#8B4513'
+        };
+    }
+    
+    updatePlayer() {
+        // Horizontal movement
+        if (this.keys['ArrowLeft'] && this.player.x > 0) {
+            this.player.x -= this.player.speed;
+        }
+        if (this.keys['ArrowRight'] && this.player.x < this.width - this.player.width) {
+            this.player.x += this.player.speed;
+        }
+        
+        // Jumping
+        if (this.keys['Space'] && (this.player.onGround || this.player.onLog)) {
+            this.player.velocityY = -this.player.jumpPower;
+            this.player.onGround = false;
+            this.player.onLog = false;
+        }
+        
+        // Apply gravity
+        this.player.velocityY += this.player.gravity;
+        this.player.y += this.player.velocityY;
+        
+        // Ground collision
+        if (this.player.y >= this.height - this.groundHeight - this.player.height) {
+            this.player.y = this.height - this.groundHeight - this.player.height;
+            this.player.velocityY = 0;
+            this.player.onGround = true;
+        }
+        
+        // Reset onLog status (will be set again if on a log)
+        this.player.onLog = false;
+    }
+    
+    updateLogs() {
+        // Move logs
+        for (let i = this.logs.length - 1; i >= 0; i--) {
+            this.logs[i].x -= this.logs[i].speed;
+            
+            // Remove logs that are off screen
+            if (this.logs[i].x + this.logs[i].width < 0) {
+                this.logs.splice(i, 1);
+            }
+        }
+        
+        // Spawn new logs
+        this.logSpawnTimer++;
+        if (this.logSpawnTimer >= this.logSpawnInterval) {
+            this.logs.push(this.createLog());
+            this.logSpawnTimer = 0;
+        }
+    }
+    
+    checkCollisions() {
+        // Check if player is in water (lose condition)
+        if (this.player.y + this.player.height > this.riverTop && 
+            this.player.y < this.riverBottom && 
+            !this.player.onLog) {
+            
+            // Check if player is on any log
+            let onAnyLog = false;
+            for (let log of this.logs) {
+                if (this.player.x < log.x + log.width &&
+                    this.player.x + this.player.width > log.x &&
+                    this.player.y + this.player.height <= log.y + log.height + 5 &&
+                    this.player.y + this.player.height >= log.y) {
+                    
+                    // Player is on log
+                    this.player.y = log.y - this.player.height;
+                    this.player.velocityY = 0;
+                    this.player.onLog = true;
+                    onAnyLog = true;
+                    
+                    // Move player with the log
+                    this.player.x -= log.speed;
+                    
+                    break;
+                }
+            }
+            
+            // If not on any log and in water, game over
+            if (!onAnyLog) {
+                this.gameOver(false);
+            }
+        }
+        
+        // Check win condition (reached other side)
+        if (this.player.x >= this.width - this.player.width - 10) {
+            this.gameOver(true);
+        }
+    }
+    
+    gameOver(won) {
+        this.gameRunning = false;
+        if (won) {
+            this.score += 100;
+            this.statusElement.textContent = 'You made it across! Well done!';
+            this.statusElement.className = 'win';
+        } else {
+            this.statusElement.textContent = 'You fell in the water! Game Over!';
+            this.statusElement.className = 'lose';
+        }
+        this.restartBtn.style.display = 'block';
+        this.updateScore();
+    }
+    
+    updateScore() {
+        this.scoreElement.textContent = this.score;
+    }
+    
+    restart() {
+        // Reset player
+        this.player.x = 50;
+        this.player.y = this.height - 120;
+        this.player.velocityY = 0;
+        this.player.onGround = false;
+        this.player.onLog = false;
+        
+        // Clear logs
+        this.logs = [];
+        this.logSpawnTimer = 0;
+        
+        // Reset game state
+        this.gameRunning = true;
+        this.statusElement.textContent = '';
+        this.statusElement.className = '';
+        this.restartBtn.style.display = 'none';
+    }
+    
+    draw() {
+        // Clear canvas
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        
+        // Draw sky (top part)
+        this.ctx.fillStyle = '#87CEEB';
+        this.ctx.fillRect(0, 0, this.width, this.riverTop);
+        
+        // Draw river
+        this.ctx.fillStyle = '#4682B4';
+        this.ctx.fillRect(0, this.riverTop, this.width, this.riverBottom - this.riverTop);
+        
+        // Draw ground
+        this.ctx.fillStyle = '#8FBC8F';
+        this.ctx.fillRect(0, this.height - this.groundHeight, this.width, this.groundHeight);
+        
+        // Draw starting platform
+        this.ctx.fillStyle = '#654321';
+        this.ctx.fillRect(0, this.riverTop, 80, this.riverBottom - this.riverTop);
+        
+        // Draw ending platform
+        this.ctx.fillStyle = '#654321';
+        this.ctx.fillRect(this.width - 80, this.riverTop, 80, this.riverBottom - this.riverTop);
+        
+        // Draw logs
+        for (let log of this.logs) {
+            this.ctx.fillStyle = log.color;
+            this.ctx.fillRect(log.x, log.y, log.width, log.height);
+            
+            // Add log texture
+            this.ctx.fillStyle = '#654321';
+            for (let i = 0; i < log.width; i += 10) {
+                this.ctx.fillRect(log.x + i, log.y + 2, 2, log.height - 4);
+            }
+        }
+        
+        // Draw player (lumberjack)
+        // Body
+        this.ctx.fillStyle = '#8B0000';
+        this.ctx.fillRect(this.player.x + 6, this.player.y + 15, 8, 12);
+        
+        // Head
+        this.ctx.fillStyle = '#FDBCB4';
+        this.ctx.fillRect(this.player.x + 7, this.player.y + 5, 6, 8);
+        
+        // Hat
+        this.ctx.fillStyle = '#FF0000';
+        this.ctx.fillRect(this.player.x + 5, this.player.y, 10, 8);
+        
+        // Legs
+        this.ctx.fillStyle = '#000080';
+        this.ctx.fillRect(this.player.x + 6, this.player.y + 25, 3, 5);
+        this.ctx.fillRect(this.player.x + 11, this.player.y + 25, 3, 5);
+        
+        // Arms
+        this.ctx.fillStyle = '#FDBCB4';
+        this.ctx.fillRect(this.player.x + 2, this.player.y + 16, 4, 6);
+        this.ctx.fillRect(this.player.x + 14, this.player.y + 16, 4, 6);
+        
+        // Show instructions if game not running
+        if (!this.gameRunning && this.statusElement.textContent === '') {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            this.ctx.fillRect(0, 0, this.width, this.height);
+            
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '20px Courier New';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('Use Arrow Keys to Move', this.width / 2, this.height / 2 - 40);
+            this.ctx.fillText('Spacebar to Jump', this.width / 2, this.height / 2 - 10);
+            this.ctx.fillText('Cross the river by jumping on logs!', this.width / 2, this.height / 2 + 20);
+            this.ctx.fillText('Press any key to start', this.width / 2, this.height / 2 + 50);
+        }
+    }
+    
+    gameLoop() {
+        if (this.gameRunning) {
+            this.updatePlayer();
+            this.updateLogs();
+            this.checkCollisions();
+        }
+        
+        this.draw();
+        requestAnimationFrame(() => this.gameLoop());
+    }
+}
+
+// Start the game when page loads
+window.addEventListener('load', () => {
+    new LumberjackGame();
+});

@@ -1,0 +1,96 @@
+body {
+    margin: 0;
+    padding: 20px;
+    background-color: #2c3e50;
+    color: white;
+    font-family: 'Courier New', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.game-container {
+    text-align: center;
+    background-color: #34495e;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+h1 {
+    margin: 0 0 20px 0;
+    font-size: 24px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#gameCanvas {
+    border: 3px solid #1abc9c;
+    background-color: #87ceeb;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    display: block;
+    margin: 0 auto;
+}
+
+.controls {
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.controls p {
+    margin: 5px 0;
+}
+
+#score {
+    color: #f39c12;
+    font-weight: bold;
+}
+
+#restartBtn, #fullResetBtn, #musicToggle {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 5px 5px;
+    font-family: 'Courier New', monospace;
+}
+
+#restartBtn:hover, #fullResetBtn:hover, #musicToggle:hover {
+    background-color: #c0392b;
+}
+
+#fullResetBtn {
+    background-color: #8e44ad;
+}
+
+#fullResetBtn:hover {
+    background-color: #7d3c98;
+}
+
+#musicToggle {
+    background-color: #27ae60;
+}
+
+#musicToggle:hover {
+    background-color: #229954;
+}
+
+#gameStatus {
+    margin-top: 15px;
+    font-size: 18px;
+    font-weight: bold;
+    min-height: 25px;
+}
+
+.win {
+    color: #2ecc71;
+}
+
+.lose {
+    color: #e74c3c;
+}

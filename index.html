@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumberjack Run</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <h1>Lumberjack Run</h1>
+        <audio id="backgroundMusic" loop>
+            <source src="background-music.mp3" type="audio/mpeg">
+            <source src="background-music.wav" type="audio/wav">
+            Your browser does not support the audio element.
+        </audio>
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div class="controls">
+            <p>Use arrow keys to move, spacebar to jump</p>
+            <p>Level: <span id="level">1</span> | Score: <span id="score">0</span> | Time: <span id="timer">0:00.00</span></p>
+            <button id="musicToggle">🎵 Music: ON</button>
+            <button id="restartBtn" style="display: none;">Continue from Checkpoint</button>
+            <button id="fullResetBtn" style="display: none;">Full Reset</button>
+        </div>
+        <div id="gameStatus"></div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
