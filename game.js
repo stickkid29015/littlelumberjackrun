@@ -40,6 +40,19 @@ class LumberjackGame {
         this.level = 1;
         this.checkpointLevel = 1;
         this.checkpointScore = 0;
+
+        // Loading screen state
+        this.loadingScreen = true;
+        this.loadingProgress = 0;
+        this.loadingStartTime = null;
+        this.loadingDuration = 4000; // 4 seconds
+        this.coverArt = null;
+
+        // Level announcement state
+        this.showingLevelAnnouncement = false;
+        this.levelAnnouncementStartTime = null;
+        this.levelAnnouncementDuration = 2000; // 2 seconds
+        this.currentAnnouncementLevel = 1;
         
         // Timer system
         this.timerStartTime = null;
@@ -77,6 +90,11 @@ class LumberjackGame {
         
         // Particle system for water effects
         this.particles = [];
+
+        // Cloud system
+        this.clouds = [];
+        this.cloudSpawnTimer = 0;
+        this.cloudSpawnInterval = 300; // frames between cloud spawns
         
         // Flag properties
         this.flag = {
@@ -98,6 +116,9 @@ class LumberjackGame {
         this.keys = {};
         this.setupEventListeners();
         
+        // Load cover art
+        this.loadCoverArt();
+
         // Start game loop
         this.gameLoop();
     }
@@ -112,8 +133,8 @@ class LumberjackGame {
             
             this.keys[e.code] = true;
             
-            // Start game on any key press if not started
-            if (!this.gameStarted) {
+            // Start game on any key press if not started and loading is complete
+            if (!this.gameStarted && !this.loadingScreen) {
                 this.gameStarted = true;
                 this.gameRunning = true;
                 this.startTimer(); // Start timer when game begins
@@ -184,6 +205,34 @@ class LumberjackGame {
         // Try to start music when game starts
         this.startMusic();
     }
+
+    loadCoverArt() {
+        this.coverArt = new Image();
+        this.coverArt.onload = () => {
+            console.log('Cover art loaded successfully');
+            this.startLoading();
+        };
+        this.coverArt.onerror = () => {
+            console.log('Failed to load cover art, starting without it');
+            this.startLoading();
+        };
+        this.coverArt.src = 'cover_art.png';
+    }
+
+    startLoading() {
+        this.loadingStartTime = Date.now();
+    }
+
+    updateLoading() {
+        if (!this.loadingScreen || !this.loadingStartTime) return;
+
+        const elapsed = Date.now() - this.loadingStartTime;
+        this.loadingProgress = Math.min(elapsed / this.loadingDuration, 1);
+
+        if (this.loadingProgress >= 1) {
+            this.loadingScreen = false;
+        }
+    }
     
     createLog() {
         // Scale difficulty with level (start easier on level 1)
@@ -224,22 +273,22 @@ class LumberjackGame {
     createAlligator() {
         // Alligators only spawn from level 3 onwards
         if (this.level < 3) return null;
-        
+
         // Scale speed with level
         const baseSpeed = 0.5 + (this.level - 3) * 0.2;
         const maxSpeed = baseSpeed + 1;
         const speed = Math.random() * (maxSpeed - baseSpeed) + baseSpeed;
-        
+
         const alligatorWidth = 40;
         const alligatorHeight = 12;
-        
+
         // Spawn alligators at the top of the water column
         const possibleY = [
             this.riverTop - 5,
             this.riverTop,
             this.riverTop + 5
         ];
-        
+
         return {
             x: this.width,
             y: possibleY[Math.floor(Math.random() * possibleY.length)],
@@ -248,6 +297,40 @@ class LumberjackGame {
             speed: speed,
             color: '#2F4F2F' // Dark green
         };
+    }
+
+    createCloud() {
+        // Create irregular cloud shapes using rectangles
+        const baseWidth = 60 + Math.random() * 40; // 60-100 width
+        const baseHeight = 20 + Math.random() * 15; // 20-35 height
+        const speed = 0.2 + Math.random() * 0.3; // Very slow movement
+        const y = 20 + Math.random() * 80; // Position in upper sky
+
+        // Create cloud as collection of rectangles for irregular shape
+        const cloud = {
+            x: this.width + 50, // Start off screen
+            y: y,
+            speed: speed,
+            parts: []
+        };
+
+        // Generate 3-6 rectangular parts to make an irregular cloud shape
+        const numParts = 3 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < numParts; i++) {
+            const partWidth = baseWidth * (0.6 + Math.random() * 0.8);
+            const partHeight = baseHeight * (0.5 + Math.random() * 1);
+            const offsetX = (Math.random() - 0.5) * baseWidth * 0.8;
+            const offsetY = (Math.random() - 0.5) * baseHeight * 0.6;
+
+            cloud.parts.push({
+                offsetX: offsetX,
+                offsetY: offsetY,
+                width: partWidth,
+                height: partHeight
+            });
+        }
+
+        return cloud;
     }
     
     createWaterSplash(x, y, intensity = 1) {
@@ -380,11 +463,11 @@ class LumberjackGame {
     
     updateAlligators() {
         if (!this.gameRunning) return;
-        
+
         // Move alligators
         for (let i = this.alligators.length - 1; i >= 0; i--) {
             this.alligators[i].x -= this.alligators[i].speed;
-            
+
             // Create ripple effects for alligators swimming
             if (Math.random() < 0.08) { // 8% chance each frame
                 const alligator = this.alligators[i];
@@ -392,7 +475,7 @@ class LumberjackGame {
                     alligator.x + alligator.width / 2,
                     alligator.y + alligator.height + 3
                 );
-                
+
                 // Occasionally create a small splash too
                 if (Math.random() < 0.05) {
                     this.createWaterSplash(
@@ -402,18 +485,18 @@ class LumberjackGame {
                     );
                 }
             }
-            
+
             // Remove alligators that are off screen
             if (this.alligators[i].x + this.alligators[i].width < 0) {
                 this.alligators.splice(i, 1);
             }
         }
-        
+
         // Spawn new alligators starting from level 3
         if (this.level >= 3) {
             this.alligatorSpawnTimer++;
             let adjustedInterval = Math.max(120, this.alligatorSpawnInterval - (this.level - 3) * 15);
-            
+
             if (this.alligatorSpawnTimer >= adjustedInterval) {
                 const alligator = this.createAlligator();
                 if (alligator) {
@@ -421,6 +504,28 @@ class LumberjackGame {
                 }
                 this.alligatorSpawnTimer = 0;
             }
+        }
+    }
+
+    updateClouds() {
+        // Move clouds
+        for (let i = this.clouds.length - 1; i >= 0; i--) {
+            this.clouds[i].x -= this.clouds[i].speed;
+
+            // Remove clouds that are completely off screen
+            if (this.clouds[i].x < -150) {
+                this.clouds.splice(i, 1);
+            }
+        }
+
+        // Spawn new clouds
+        this.cloudSpawnTimer++;
+        if (this.cloudSpawnTimer >= this.cloudSpawnInterval) {
+            this.clouds.push(this.createCloud());
+            this.cloudSpawnTimer = 0;
+
+            // Randomize next spawn time
+            this.cloudSpawnInterval = 200 + Math.random() * 400; // 200-600 frames
         }
     }
     
@@ -529,7 +634,7 @@ class LumberjackGame {
     nextLevel() {
         this.level++;
         this.score += 100 * this.level;
-        
+
         // Check if reached level 10 - stop timer and show final time
         if (this.level >= 10) {
             this.stopTimer();
@@ -541,7 +646,7 @@ class LumberjackGame {
             this.updateScore();
             return;
         }
-        
+
         // Save checkpoint progress (level 3 becomes permanent checkpoint once reached)
         if (this.level >= 3) {
             this.checkpointLevel = 3; // Always reset to level 3 once reached
@@ -549,27 +654,32 @@ class LumberjackGame {
             this.checkpointLevel = this.level;
         }
         this.checkpointScore = this.score;
-        
+
+        // Show level announcement
+        this.showingLevelAnnouncement = true;
+        this.levelAnnouncementStartTime = Date.now();
+        this.currentAnnouncementLevel = this.level;
+
         this.statusElement.textContent = `Level ${this.level}! Progress Saved!`;
         this.statusElement.className = 'win';
-        
+
         // Reset player position
         this.player.x = 30;
         this.player.y = this.height - 160;
         this.player.velocityY = 0;
         this.player.onGround = false;
         this.player.onLog = false;
-        
+
         // Clear logs
         this.logs = [];
         this.logSpawnTimer = 0;
-        
+
         // Clear alligators
         this.alligators = [];
         this.alligatorSpawnTimer = 0;
-        
+
         this.updateScore();
-        
+
         // Clear status after 2 seconds
         setTimeout(() => {
             if (this.gameRunning) {
@@ -634,10 +744,23 @@ class LumberjackGame {
     draw() {
         // Clear canvas
         this.ctx.clearRect(0, 0, this.width, this.height);
-        
+
         // Draw sky (top part)
         this.ctx.fillStyle = '#87CEEB';
         this.ctx.fillRect(0, 0, this.width, this.riverTop);
+
+        // Draw clouds
+        this.ctx.fillStyle = '#FFFFFF';
+        for (let cloud of this.clouds) {
+            for (let part of cloud.parts) {
+                this.ctx.fillRect(
+                    cloud.x + part.offsetX,
+                    cloud.y + part.offsetY,
+                    part.width,
+                    part.height
+                );
+            }
+        }
         
         // Draw river
         this.ctx.fillStyle = '#4682B4';
@@ -766,11 +889,15 @@ class LumberjackGame {
         this.ctx.fillRect(this.player.x + 2, this.player.y + 16, 4, 6);
         this.ctx.fillRect(this.player.x + 14, this.player.y + 16, 4, 6);
         
-        // Show instructions if game not started
-        if (!this.gameStarted) {
+        // Show loading screen
+        if (this.loadingScreen) {
+            this.drawLoadingScreen();
+        }
+        // Show instructions if game not started but loading complete
+        else if (!this.gameStarted) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             this.ctx.fillRect(0, 0, this.width, this.height);
-            
+
             this.ctx.fillStyle = 'white';
             this.ctx.font = '20px Courier New';
             this.ctx.textAlign = 'center';
@@ -780,8 +907,129 @@ class LumberjackGame {
             this.ctx.fillText('Cross the river and reach the flag!', this.width / 2, this.height / 2 + 30);
             this.ctx.fillText('Press any key to start', this.width / 2, this.height / 2 + 60);
         }
+
+        // Show level announcement overlay
+        if (this.showingLevelAnnouncement) {
+            this.drawLevelAnnouncement();
+        }
     }
-    
+
+    drawLoadingScreen() {
+        // Black background
+        this.ctx.fillStyle = '#000000';
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        // Draw cover art if loaded (preserve aspect ratio)
+        if (this.coverArt && this.coverArt.complete) {
+            const maxWidth = 400;
+            const maxHeight = 200;
+
+            // Calculate scale to fit within bounds while preserving aspect ratio
+            const scaleX = maxWidth / this.coverArt.width;
+            const scaleY = maxHeight / this.coverArt.height;
+            const scale = Math.min(scaleX, scaleY);
+
+            const artWidth = this.coverArt.width * scale;
+            const artHeight = this.coverArt.height * scale;
+            const artX = (this.width - artWidth) / 2;
+            const artY = (this.height - artHeight) / 2 - 40;
+
+            this.ctx.drawImage(this.coverArt, artX, artY, artWidth, artHeight);
+        }
+
+        // Loading text
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = '16px Courier New';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText('LOADING...', this.width / 2, this.height - 80);
+
+        // Retro loading bar background
+        const barWidth = 300;
+        const barHeight = 20;
+        const barX = (this.width - barWidth) / 2;
+        const barY = this.height - 50;
+
+        // Bar background (dark gray)
+        this.ctx.fillStyle = '#333333';
+        this.ctx.fillRect(barX, barY, barWidth, barHeight);
+
+        // Bar border (white, pixelated style)
+        this.ctx.strokeStyle = '#FFFFFF';
+        this.ctx.lineWidth = 2;
+        this.ctx.strokeRect(barX, barY, barWidth, barHeight);
+
+        // Progress fill (green, retro style)
+        const progressWidth = barWidth * this.loadingProgress;
+        this.ctx.fillStyle = '#00FF00';
+        this.ctx.fillRect(barX, barY, progressWidth, barHeight);
+
+        // Add pixelated segments to the progress bar
+        this.ctx.fillStyle = '#00AA00'; // Darker green for segments
+        for (let i = 0; i < progressWidth; i += 10) {
+            this.ctx.fillRect(barX + i + 8, barY + 2, 2, barHeight - 4);
+        }
+
+        // Loading percentage
+        const percentage = Math.floor(this.loadingProgress * 100);
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = '12px Courier New';
+        this.ctx.fillText(`${percentage}%`, this.width / 2, this.height - 15);
+    }
+
+    drawLevelAnnouncement() {
+        if (!this.showingLevelAnnouncement || !this.levelAnnouncementStartTime) return;
+
+        const elapsed = Date.now() - this.levelAnnouncementStartTime;
+        const progress = elapsed / this.levelAnnouncementDuration;
+
+        // Fade in/out effect
+        let alpha = 1;
+        if (progress < 0.2) {
+            // Fade in during first 20%
+            alpha = progress / 0.2;
+        } else if (progress > 0.8) {
+            // Fade out during last 20%
+            alpha = (1 - progress) / 0.2;
+        }
+
+        // Scale effect - starts big and shrinks to normal
+        let scale = 1;
+        if (progress < 0.3) {
+            scale = 1.5 - (progress / 0.3) * 0.5; // 1.5 to 1.0
+        }
+
+        // Semi-transparent background
+        this.ctx.fillStyle = `rgba(0, 0, 0, ${alpha * 0.7})`;
+        this.ctx.fillRect(0, 0, this.width, this.height);
+
+        // Level text
+        this.ctx.save();
+        this.ctx.translate(this.width / 2, this.height / 2);
+        this.ctx.scale(scale, scale);
+        this.ctx.globalAlpha = alpha;
+
+        this.ctx.fillStyle = '#FFFFFF';
+        this.ctx.font = 'bold 48px Courier New';
+        this.ctx.textAlign = 'center';
+        this.ctx.strokeStyle = '#000000';
+        this.ctx.lineWidth = 3;
+
+        const levelText = `LEVEL ${this.currentAnnouncementLevel}`;
+
+        // Draw text outline
+        this.ctx.strokeText(levelText, 0, 0);
+        // Draw text
+        this.ctx.fillText(levelText, 0, 0);
+
+        this.ctx.restore();
+
+        // Check if announcement is complete
+        if (progress >= 1) {
+            this.showingLevelAnnouncement = false;
+            this.levelAnnouncementStartTime = null;
+        }
+    }
+
     fullReset() {
         // Reset player
         this.player.x = 30;
@@ -895,12 +1143,22 @@ class LumberjackGame {
     }
     
     gameLoop() {
-        this.updatePlayer();
-        this.updateLogs();
-        this.updateAlligators();
-        this.updateParticles();
-        this.checkCollisions();
-        this.updateTimer();
+        // Update loading screen if active
+        if (this.loadingScreen) {
+            this.updateLoading();
+        }
+
+        // Only update game logic if loading is complete
+        if (!this.loadingScreen) {
+            this.updatePlayer();
+            this.updateLogs();
+            this.updateAlligators();
+            this.updateClouds();
+            this.updateParticles();
+            this.checkCollisions();
+            this.updateTimer();
+        }
+
         this.draw();
         requestAnimationFrame(() => this.gameLoop());
     }
