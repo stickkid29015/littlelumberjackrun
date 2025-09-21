@@ -21,8 +21,44 @@
             <button id="musicToggle">🎵 Music: ON</button>
             <button id="restartBtn" style="display: none;">Continue from Checkpoint</button>
             <button id="fullResetBtn" style="display: none;">Full Reset</button>
+            <button id="leaderboardBtn">🏆 Leaderboard</button>
         </div>
         <div id="gameStatus"></div>
+
+        <!-- Leaderboard Modal -->
+        <div id="leaderboardModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🏆 Level 10 Speed Records</h2>
+                    <span class="close" id="closeLeaderboard">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div id="leaderboardList">
+                        <p class="no-records">No records yet! Be the first to reach Level 10!</p>
+                    </div>
+                    <button id="clearLeaderboard" class="danger-btn">Clear All Records</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Name Input Modal (shown when player reaches level 10) -->
+        <div id="nameInputModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>🎉 Congratulations!</h2>
+                </div>
+                <div class="modal-body">
+                    <p>You reached Level 10!</p>
+                    <p>Your time: <span id="finalTimeDisplay">0:00.00</span></p>
+                    <p>Enter your name for the leaderboard:</p>
+                    <input type="text" id="playerNameInput" maxlength="20" placeholder="Enter your name...">
+                    <div class="modal-buttons">
+                        <button id="submitScore">Submit Score</button>
+                        <button id="skipScore">Skip</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
     <script src="game.js"></script>
 </body>

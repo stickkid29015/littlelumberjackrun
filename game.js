@@ -10,6 +10,18 @@ class LumberjackGame {
         this.musicToggle = document.getElementById('musicToggle');
         this.backgroundMusic = document.getElementById('backgroundMusic');
         this.timerElement = document.getElementById('timer');
+
+        // Leaderboard elements
+        this.leaderboardBtn = document.getElementById('leaderboardBtn');
+        this.leaderboardModal = document.getElementById('leaderboardModal');
+        this.closeLeaderboard = document.getElementById('closeLeaderboard');
+        this.leaderboardList = document.getElementById('leaderboardList');
+        this.clearLeaderboard = document.getElementById('clearLeaderboard');
+        this.nameInputModal = document.getElementById('nameInputModal');
+        this.playerNameInput = document.getElementById('playerNameInput');
+        this.submitScore = document.getElementById('submitScore');
+        this.skipScore = document.getElementById('skipScore');
+        this.finalTimeDisplay = document.getElementById('finalTimeDisplay');
         
         // Music state
         this.musicPlaying = true;
@@ -193,9 +205,53 @@ class LumberjackGame {
             e.stopPropagation();
             this.toggleMusic();
         });
-        
+
         this.musicToggle.addEventListener('keydown', (e) => {
             e.stopPropagation();
+        });
+
+        // Leaderboard button
+        this.leaderboardBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showLeaderboard();
+        });
+
+        // Close leaderboard
+        this.closeLeaderboard.addEventListener('click', () => {
+            this.hideLeaderboard();
+        });
+
+        // Clear leaderboard
+        this.clearLeaderboard.addEventListener('click', () => {
+            if (confirm('Are you sure you want to clear all leaderboard records?')) {
+                this.clearAllRecords();
+            }
+        });
+
+        // Name input modal buttons
+        this.submitScore.addEventListener('click', () => {
+            this.submitPlayerScore();
+        });
+
+        this.skipScore.addEventListener('click', () => {
+            this.hideNameInput();
+        });
+
+        // Enter key in name input
+        this.playerNameInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                this.submitPlayerScore();
+            }
+        });
+
+        // Close modals when clicking outside
+        window.addEventListener('click', (e) => {
+            if (e.target === this.leaderboardModal) {
+                this.hideLeaderboard();
+            }
+            if (e.target === this.nameInputModal) {
+                this.hideNameInput();
+            }
         });
         
         // Load music file
@@ -635,7 +691,7 @@ class LumberjackGame {
         this.level++;
         this.score += 100 * this.level;
 
-        // Check if reached level 10 - stop timer and show final time
+        // Check if reached level 10 - stop timer and show name input
         if (this.level >= 10) {
             this.stopTimer();
             this.statusElement.textContent = `🏆 LEVEL 10 REACHED! Final Time: ${this.getFormattedTime()}`;
@@ -644,6 +700,9 @@ class LumberjackGame {
             this.restartBtn.style.display = 'block';
             this.fullResetBtn.style.display = 'block';
             this.updateScore();
+
+            // Show name input modal for leaderboard
+            this.showNameInputModal();
             return;
         }
 
@@ -1136,6 +1195,116 @@ class LumberjackGame {
         if (this.timerElement) {
             this.timerElement.textContent = this.getFormattedTime();
         }
+    }
+
+    // Leaderboard Management Functions
+    getLeaderboardData() {
+        const data = localStorage.getItem('lumberjackLeaderboard');
+        return data ? JSON.parse(data) : [];
+    }
+
+    saveLeaderboardData(data) {
+        localStorage.setItem('lumberjackLeaderboard', JSON.stringify(data));
+    }
+
+    addToLeaderboard(name, time) {
+        const leaderboard = this.getLeaderboardData();
+        const entry = {
+            name: name,
+            time: time,
+            formattedTime: this.formatTime(time),
+            date: new Date().toLocaleDateString()
+        };
+
+        leaderboard.push(entry);
+        // Sort by time (fastest first)
+        leaderboard.sort((a, b) => a.time - b.time);
+        // Keep only top 10
+        if (leaderboard.length > 10) {
+            leaderboard.splice(10);
+        }
+
+        this.saveLeaderboardData(leaderboard);
+        return leaderboard;
+    }
+
+    formatTime(timeMs) {
+        const minutes = Math.floor(timeMs / 60000);
+        const seconds = Math.floor((timeMs % 60000) / 1000);
+        const milliseconds = Math.floor((timeMs % 1000) / 10);
+        return `${minutes}:${seconds.toString().padStart(2, '0')}.${milliseconds.toString().padStart(2, '0')}`;
+    }
+
+    showNameInputModal() {
+        this.finalTimeDisplay.textContent = this.getFormattedTime();
+        this.nameInputModal.style.display = 'block';
+        this.playerNameInput.focus();
+    }
+
+    hideNameInput() {
+        this.nameInputModal.style.display = 'none';
+        this.playerNameInput.value = '';
+    }
+
+    submitPlayerScore() {
+        const name = this.playerNameInput.value.trim();
+        if (name === '') {
+            alert('Please enter your name!');
+            return;
+        }
+
+        const finalTime = this.getCurrentTime();
+        this.addToLeaderboard(name, finalTime);
+        this.hideNameInput();
+
+        // Show success message
+        this.statusElement.textContent = `🏆 Score saved! Check the leaderboard!`;
+        this.statusElement.className = 'win';
+    }
+
+    showLeaderboard() {
+        const leaderboard = this.getLeaderboardData();
+        this.renderLeaderboard(leaderboard);
+        this.leaderboardModal.style.display = 'block';
+    }
+
+    hideLeaderboard() {
+        this.leaderboardModal.style.display = 'none';
+    }
+
+    renderLeaderboard(leaderboard) {
+        if (leaderboard.length === 0) {
+            this.leaderboardList.innerHTML = '<p class="no-records">No records yet! Be the first to reach Level 10!</p>';
+            return;
+        }
+
+        let html = '<div class="leaderboard-entries">';
+        leaderboard.forEach((entry, index) => {
+            const rank = index + 1;
+            const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`;
+            html += `
+                <div class="leaderboard-entry rank-${rank}">
+                    <span class="rank">${medal}</span>
+                    <span class="name">${this.escapeHtml(entry.name)}</span>
+                    <span class="time">${entry.formattedTime}</span>
+                    <span class="date">${entry.date}</span>
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        this.leaderboardList.innerHTML = html;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    clearAllRecords() {
+        localStorage.removeItem('lumberjackLeaderboard');
+        this.renderLeaderboard([]);
     }
     
     gameLoop() {
