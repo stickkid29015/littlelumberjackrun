@@ -647,12 +647,8 @@ class LumberjackGame {
             return;
         }
 
-        // Save checkpoint progress (level 3 becomes permanent checkpoint once reached)
-        if (this.level >= 3) {
-            this.checkpointLevel = 3; // Always reset to level 3 once reached
-        } else {
-            this.checkpointLevel = this.level;
-        }
+        // Save checkpoint progress at current level
+        this.checkpointLevel = this.level;
         this.checkpointScore = this.score;
 
         // Show level announcement
