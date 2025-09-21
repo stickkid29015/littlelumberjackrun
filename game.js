@@ -152,6 +152,14 @@ class LumberjackGame {
                 this.startTimer(); // Start timer when game begins
                 this.startMusic(); // Start music when game begins
             }
+
+            // Allow Enter key to restart game when game is over
+            if (e.code === 'Enter' && !this.gameRunning && this.gameStarted) {
+                // Check if restart button is visible (game over state)
+                if (this.restartBtn.style.display === 'block') {
+                    this.restart();
+                }
+            }
             
             // Debug: Press 5 to jump to level 3
             if (e.code === 'Digit5' && this.gameRunning) {
@@ -752,9 +760,9 @@ class LumberjackGame {
             this.statusElement.className = 'win';
         } else {
             if (this.checkpointLevel > 1) {
-                this.statusElement.textContent = `You died! Restarting from Level ${this.checkpointLevel}`;
+                this.statusElement.textContent = `You died! Press Enter or click to restart from Level ${this.checkpointLevel}`;
             } else {
-                this.statusElement.textContent = 'You fell in the water! Game Over!';
+                this.statusElement.textContent = 'You fell in the water! Press Enter or click to restart!';
             }
             this.statusElement.className = 'lose';
         }
