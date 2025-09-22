@@ -1221,7 +1221,19 @@ class LumberjackGame {
     // Leaderboard Management Functions
     getLeaderboardData() {
         const data = localStorage.getItem('lumberjackLeaderboard');
-        return data ? JSON.parse(data) : [];
+        if (data) {
+            return JSON.parse(data);
+        } else {
+            // Pre-populate with Ike's record from before leaderboard was implemented
+            const defaultData = [{
+                name: "Ike",
+                time: 1485035, // 24:45.35 in milliseconds
+                formattedTime: "24:45.35",
+                date: new Date().toLocaleDateString()
+            }];
+            this.saveLeaderboardData(defaultData);
+            return defaultData;
+        }
     }
 
     saveLeaderboardData(data) {
