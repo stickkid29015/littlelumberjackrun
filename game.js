@@ -23,7 +23,6 @@ class LumberjackGame {
         this.leaderboardModal = document.getElementById('leaderboardModal');
         this.closeLeaderboard = document.getElementById('closeLeaderboard');
         this.leaderboardList = document.getElementById('leaderboardList');
-        this.clearLeaderboard = document.getElementById('clearLeaderboard');
         this.nameInputModal = document.getElementById('nameInputModal');
         this.playerNameInput = document.getElementById('playerNameInput');
         this.submitScore = document.getElementById('submitScore');
@@ -237,15 +236,6 @@ class LumberjackGame {
             this.hideLeaderboard();
         });
 
-        // Clear leaderboard
-        this.clearLeaderboard.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to clear all leaderboard records?')) {
-                const success = await this.clearAllRecords();
-                if (success) {
-                    this.showLeaderboard(); // Refresh the display
-                }
-            }
-        });
 
         // Name input modal buttons
         this.submitScore.addEventListener('click', () => {
@@ -1254,23 +1244,6 @@ class LumberjackGame {
         }
     }
 
-    async clearAllRecords() {
-        try {
-            const { error } = await this.supabase
-                .from('leaderboard')
-                .delete()
-                .neq('id', 0); // Delete all records
-
-            if (error) {
-                console.error('Error clearing leaderboard:', error);
-                return false;
-            }
-            return true;
-        } catch (error) {
-            console.error('Error clearing leaderboard:', error);
-            return false;
-        }
-    }
 
     async addToLeaderboard(name, time) {
         try {
