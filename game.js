@@ -9,6 +9,7 @@ class LumberjackGame {
         this.fullResetBtn = document.getElementById('fullResetBtn');
         this.musicToggle = document.getElementById('musicToggle');
         this.backgroundMusic = document.getElementById('backgroundMusic');
+        this.jumpSound = document.getElementById('jumpSound');
         this.timerElement = document.getElementById('timer');
 
         // Leaderboard elements
@@ -26,6 +27,7 @@ class LumberjackGame {
         // Music state
         this.musicPlaying = true;
         this.backgroundMusic.volume = 0.3; // Set volume to 30%
+        this.jumpSound.volume = 0.4; // Set jump sound volume to 40%
         
         // Check if music file exists
         this.backgroundMusic.addEventListener('loadstart', () => {
@@ -443,6 +445,7 @@ class LumberjackGame {
             this.player.velocityY = -this.player.jumpPower;
             this.player.onGround = false;
             this.player.onLog = false;
+            this.playJumpSound(); // Play jump sound effect
         }
         
         // Apply gravity
@@ -1158,6 +1161,16 @@ class LumberjackGame {
             this.musicToggle.textContent = '🎵 Music: ON';
             this.musicPlaying = true;
         }
+    }
+
+    playJumpSound() {
+        // Reset the sound to the beginning and play it
+        // This allows multiple rapid jumps to play sound each time
+        this.jumpSound.currentTime = 0;
+        this.jumpSound.play().catch((error) => {
+            // Silently handle any audio play errors (e.g., browser autoplay restrictions)
+            console.log('Jump sound play failed:', error);
+        });
     }
     
     startTimer() {
