@@ -12,6 +12,12 @@ class LumberjackGame {
         this.jumpSound = document.getElementById('jumpSound');
         this.timerElement = document.getElementById('timer');
 
+        // Initialize Supabase client
+        this.supabase = supabase.createClient(
+            'https://rmlzarvcmybuvazqdtpq.supabase.co',
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJtbHphcnZjbXlidXZhenFkdHBxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg1MDMyMTMsImV4cCI6MjA3NDA3OTIxM30.OslcibdLJu8wZ--Eep5ph27ph_dAdphc7JanMv6GKX0'
+        );
+
         // Leaderboard elements
         this.leaderboardBtn = document.getElementById('leaderboardBtn');
         this.leaderboardModal = document.getElementById('leaderboardModal');
@@ -232,9 +238,12 @@ class LumberjackGame {
         });
 
         // Clear leaderboard
-        this.clearLeaderboard.addEventListener('click', () => {
+        this.clearLeaderboard.addEventListener('click', async () => {
             if (confirm('Are you sure you want to clear all leaderboard records?')) {
-                this.clearAllRecords();
+                const success = await this.clearAllRecords();
+                if (success) {
+                    this.showLeaderboard(); // Refresh the display
+                }
             }
         });
 
@@ -1219,46 +1228,74 @@ class LumberjackGame {
     }
 
     // Leaderboard Management Functions
-    getLeaderboardData() {
-        const data = localStorage.getItem('lumberjackLeaderboard');
-        if (data) {
-            return JSON.parse(data);
-        } else {
-            // Pre-populate with Ike's record from before leaderboard was implemented
-            const defaultData = [{
-                name: "Ike",
-                time: 1485035, // 24:45.35 in milliseconds
-                formattedTime: "24:45.35",
-                date: new Date().toLocaleDateString()
-            }];
-            this.saveLeaderboardData(defaultData);
-            return defaultData;
+    async getLeaderboardData() {
+        try {
+            const { data, error } = await this.supabase
+                .from('leaderboard')
+                .select('*')
+                .order('time_ms', { ascending: true })
+                .limit(10);
+
+            if (error) {
+                console.error('Error fetching leaderboard:', error);
+                return [];
+            }
+
+            // Convert to old format for compatibility
+            return data.map(entry => ({
+                name: entry.name,
+                time: entry.time_ms,
+                formattedTime: entry.formatted_time,
+                date: new Date(entry.created_at).toLocaleDateString()
+            }));
+        } catch (error) {
+            console.error('Error fetching leaderboard:', error);
+            return [];
         }
     }
 
-    saveLeaderboardData(data) {
-        localStorage.setItem('lumberjackLeaderboard', JSON.stringify(data));
+    async clearAllRecords() {
+        try {
+            const { error } = await this.supabase
+                .from('leaderboard')
+                .delete()
+                .neq('id', 0); // Delete all records
+
+            if (error) {
+                console.error('Error clearing leaderboard:', error);
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error clearing leaderboard:', error);
+            return false;
+        }
     }
 
-    addToLeaderboard(name, time) {
-        const leaderboard = this.getLeaderboardData();
-        const entry = {
-            name: name,
-            time: time,
-            formattedTime: this.formatTime(time),
-            date: new Date().toLocaleDateString()
-        };
+    async addToLeaderboard(name, time) {
+        try {
+            const formattedTime = this.formatTime(time);
 
-        leaderboard.push(entry);
-        // Sort by time (fastest first)
-        leaderboard.sort((a, b) => a.time - b.time);
-        // Keep only top 10
-        if (leaderboard.length > 10) {
-            leaderboard.splice(10);
+            const { data, error } = await this.supabase
+                .from('leaderboard')
+                .insert([{
+                    name: name,
+                    time_ms: time,
+                    formatted_time: formattedTime
+                }])
+                .select();
+
+            if (error) {
+                console.error('Error saving to leaderboard:', error);
+                return [];
+            }
+
+            // Return updated leaderboard
+            return await this.getLeaderboardData();
+        } catch (error) {
+            console.error('Error saving to leaderboard:', error);
+            return [];
         }
-
-        this.saveLeaderboardData(leaderboard);
-        return leaderboard;
     }
 
     formatTime(timeMs) {
@@ -1287,18 +1324,35 @@ class LumberjackGame {
         }
 
         const finalTime = this.getCurrentTime();
-        this.addToLeaderboard(name, finalTime);
+        this.savePlayerScore(name, finalTime);
         this.hideNameInput();
-
-        // Show success message
-        this.statusElement.textContent = `🏆 Score saved! Check the leaderboard!`;
-        this.statusElement.className = 'win';
     }
 
-    showLeaderboard() {
-        const leaderboard = this.getLeaderboardData();
-        this.renderLeaderboard(leaderboard);
+    async savePlayerScore(name, finalTime) {
+        try {
+            // Show saving message
+            this.statusElement.textContent = `📤 Saving score...`;
+            this.statusElement.className = 'win';
+
+            await this.addToLeaderboard(name, finalTime);
+
+            // Show success message
+            this.statusElement.textContent = `🏆 Score saved! Check the leaderboard!`;
+            this.statusElement.className = 'win';
+        } catch (error) {
+            console.error('Failed to save score:', error);
+            this.statusElement.textContent = `⚠️ Failed to save score. Please try again.`;
+            this.statusElement.className = 'lose';
+        }
+    }
+
+    async showLeaderboard() {
+        // Show loading state
+        this.leaderboardList.innerHTML = '<p class="no-records">Loading leaderboard...</p>';
         this.leaderboardModal.style.display = 'block';
+
+        const leaderboard = await this.getLeaderboardData();
+        this.renderLeaderboard(leaderboard);
     }
 
     hideLeaderboard() {
